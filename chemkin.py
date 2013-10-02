@@ -15,7 +15,7 @@ import numpy
 ################################################################################
 
 # The directory in which Chemkin is installed
-CHEMKIN_DIR = os.path.abspath('/home/reaction/chemkin15131_linuxx8664')
+CHEMKIN_DIR = os.path.abspath('/home/reaction/chemkin15112_linuxx8664')
 
 # The preamble to each Chemkin execution shell script
 CHEMKIN_SCRIPT_PREAMBLE = """#!/bin/sh -v
@@ -268,6 +268,123 @@ PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
         return input_stream      
 
 ################################################################################
+    def writeinputPlugFlow(self,problemType, reactants, flowrate, 
+                           startingAxialPosition, endingAxialPosition, diameter,
+                           temperature  = None, pressure  = None,  
+                           temperatureProfile = None, pressureProfile = None):
+    
+        """
+        Write input file for typical plug flow
+        """
+        
+        # Problem definition block 
+                    
+        input_stream=("""
+! 
+! problem type definition
+! 
+MOMEN ON   ! Turn on Momentum Equation
+PLUG   ! Plug Flow Reactor
+RTIME ON   ! Turn on Residence Time Calculation
+""")
+
+        if problemType.lower() == 'FixGasTemperature'.lower():
+            input_stream+=("""
+TGIV   ! Fix Gas Temperature""")
+        elif problemType.lower() == 'solveGasEnergy'.lower():
+            input_stream+=("""
+ENRG   ! Solve Gas Energy Equation""")
+    
+        
+        # Physical property
+        
+        input_stream+=("""
+! 
+! physical property
+! 
+!Surface_Temperature   ! Surface Temperature Same as Gas Temperature
+""")
+        
+        input_stream+=('FLRT {0:g}   ! Mass Flow Rate (g/sec)\n'.format(flowrate))
+        
+        if pressureProfile:
+            with open(pressureProfile, 'rb') as csvfile:
+                reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+                for row in reader:
+                    pos = float(row[0].split(',')[0]) # (cm)
+                    pres = float(row[0].split(',')[1])*1.0/1.01325 # (atm)
+                    input_stream+=("""
+PPRO {0:g} {1:g}   ! Pressure (atm)""".format(time,vol))
+        else:
+            input_stream+=('PRES {0:g}   ! Pressure (atm)\n'.format(pressure/1.01325))
+            
+        if temperatureProfile:
+            with open(temperatureProfile, 'rb') as csvfile:
+                reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+                for row in reader:
+                    pos = float(row[0].split(',')[0]) # (cm)
+                    temp = float(row[0].split(',')[1]) # (K)
+                    input_stream+=("""
+TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
+        else:
+            input_stream+=('TEMP {0:g}   ! Temperature (K)'.format(temperature)) 
+        
+        # reactor dimension definition
+        
+        input_stream+=("""
+VIS 0.0   ! Mixture Viscosity at Inlet (g/cm-sec)
+! 
+! reactor dimension definition
+! 
+""")
+        input_stream+=('DIAM {0:g}   ! Diameter (cm)\n'.format(diameter))
+        input_stream+=('XEND {0:g}   ! Ending Axial Position (cm)\n'.format(endingAxialPosition))
+        input_stream+=('XSTR {0:g}   ! Starting Axial Position (cm)\n'.format(startingAxialPosition))
+                       
+        
+        # Species property block
+        
+        input_stream+=("""
+!
+! species property
+!
+""")
+        
+        for reac , conc in reactants:            
+            input_stream+=('REAC {0} {1:g} ! Reactant Fraction (mole fraction) \n'.format(reac,conc))
+            
+        # Solver control block
+        
+        input_stream+=("""! 
+! 
+! solver control
+! 
+ACHG 0.0   ! Maximum Absolute Change in Site Fractions
+ADAP   ! Save Additional Adaptive Points
+ATLS 1.0E-6   ! Sensitivity Absolute Tolerance
+ATOL 1.0E-9   ! Absolute Tolerance
+MAXIT 4   ! Maximum Number of Iterations
+NNEG   ! Force Non-negative Solution
+PSV 1.0E-8   ! Scaling Factor for Relaxing Surface Equations (cm/sec)
+RCHG 1.0E-6   ! Maximum Relative Change in Site Fractions
+RTLS 0.0001   ! Sensitivity Relative Tolerance
+RTOL 1.0E-6   ! Relative Tolerance
+TSTP 1.0   ! Initial Integration Step (cm""")          
+        
+        input_stream+=("""
+! 
+! output control and other misc. property
+! 
+GFAC 1.0   ! Gas Reaction Rate Multiplier""")
+                                            
+        input_stream+=('\nEND')
+        
+        return input_stream      
+    
+
+
+
+################################################################################
 
 def getIgnitionDelay(ckcsvFile, tol=1.0):
     """
@@ -295,7 +412,7 @@ def getIgnitionDelay(ckcsvFile, tol=1.0):
         raise Exception('Unable to read time and/or pressure data from the given CKCSV file.')
     
     dPdt = (Pdata[1:] - Pdata[:-1]) / (tdata[1:] - tdata[:-1])
-    dPdt = dPdt[numpy.isfinite(dPdt)]
+	dPdt = dPdt[numpy.isfinite(dPdt)]
     
     index = dPdt.argmax()
     if dPdt[index] < tol:
