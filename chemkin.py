@@ -15,7 +15,7 @@ import numpy
 ################################################################################
 
 # The directory in which Chemkin is installed
-CHEMKIN_DIR = os.path.abspath('/home/reaction/chemkin15112_linuxx8664')
+CHEMKIN_DIR = os.path.abspath('/home/reaction/chemkin15131_linuxx8664')
 
 # The preamble to each Chemkin execution shell script
 CHEMKIN_SCRIPT_PREAMBLE = """#!/bin/sh -v
@@ -412,8 +412,8 @@ def getIgnitionDelay(ckcsvFile, tol=1.0):
         raise Exception('Unable to read time and/or pressure data from the given CKCSV file.')
     
     dPdt = (Pdata[1:] - Pdata[:-1]) / (tdata[1:] - tdata[:-1])
-	dPdt = dPdt[numpy.isfinite(dPdt)]
-    
+    dPdt = dPdt[numpy.isfinite(dPdt)]
+     	
     index = dPdt.argmax()
     if dPdt[index] < tol:
         raise ValueError('No ignition occurred in the given simulation.')
