@@ -421,4 +421,84 @@ def getIgnitionDelay(ckcsvFile, tol=1.0):
     return 0.5 * (tdata[index] + tdata[index+1])
 
 ################################################################################
+
+def runIgnitionReactionSensitivity(runChemkinJob, inputFile, dictionaryFile):
+    """
+    Supply a runChemkinJob python function which returns the ignition delay with a 
+    chemkin file input.  This will run finite difference reaction sensitivities and 
+    save them to a csv file.
+    """
+    
+    from rmgpy.chemkin import loadChemkinFile, saveChemkinFile
+    
+    
+    speciesList, reactionList = loadChemkinFile(inputFile, dictionaryPath = dictionaryFile, readComments = False)
+    
+    factor_high = 1.05
+    factor_low = 1. / factor_high
+    
+    
+    worksheet = csv.writer(file('ignition_rxn_sensitivity.csv', 'w'))
+    worksheet.writerow(['Index', 'Reaction', 'd[ln tau]/d[ln k]'])
+    
+    for index, reaction in enumerate(reactionList):
+        rxn_index = index + 1
+        rxn_string = reaction.toChemkin(kinetics = False)
+        
+        reaction.kinetics.changeRate(factor_high)
+        saveChemkinFile('chem_temp.inp', speciesList, reactionList, verbose = False)
+        tau_high = runChemkinJob('chem_temp.inp')
+        reaction.kinetics.changeRate(1./factor_high)    # reset the kinetics
+        
+        reaction.kinetics.changeRate(factor_low)
+        saveChemkinFile('chem_temp,', speciesList, reactionList, verbose = False)
+        tau_low = runChemkinJob('chem_temp.inp')
+        reaction.kinetics.changeRate(1./factor_low)     # reset the kinetics
+        
+        if tau_high != 0 and tau_low != 0:
+            sens = math.log(tau_high / tau_low) / math.log(k_high / k_low)
+        else:
+            sens = 0
+            
+        worksheet.writerow([rxn_index, rxn_string, sens])
+        
+################################################################################
+
+def runIgnitionThermoSensitivity(runChemkinJob, inputFile, dictionaryFile):
+    """
+    Supply a runChemkinJob python function which returns the ignition delay with a 
+    chemkin file input.  This will run finite difference sensitivities to enthalpies and 
+    save them to a csv file.
+    """
+    
+    from rmgpy.chemkin import loadChemkinFile, saveChemkinFile, getSpeciesIdentifier
+    from rmgpy.quantity import Quantity
+    
+    
+    speciesList, reactionList = loadChemkinFile(inputFile, dictionaryPath = dictionaryFile, readComments = False)
+    
+    deltaH = Quantity(1, 'kcal/mol').value_si
+    
+    worksheet = csv.writer(file('ignition_thermo_sensitivity.csv', 'w'))
+    worksheet.writerow(['Species', 'd[ln tau]/d[del H]'])
+    
+    for species in speciesList:
+        species_string = getSpeciesIdentifier(species)
+        
+        species.thermo.changeBaseEnthalpy(deltaH)
+        saveChemkinFile('chem_temp.inp', speciesList, reactionList, verbose = False)
+        tau_high = runChemkinJob('chem_temp.inp')
+        species.thermo.changeBaseEnthalpy(-deltaH)    # reset the thermo
+        
+        species.thermo.changeBaseEnthalpy(-deltaH)
+        saveChemkinFile('chem_temp,', speciesList, reactionList, verbose = False)
+        tau_low = runChemkinJob('chem_temp.inp')
+        species.thermo.changeBaseEnthalpy(deltaH)     # reset the kinetics
+        
+        if tau_high != 0 and tau_low != 0:
+            sens = math.log(tau_high / tau_low) / (2 * deltaH)
+        else:
+            sens = 0
+            
+        worksheet.writerow([species_string, sens])
       
