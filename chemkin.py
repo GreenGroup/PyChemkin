@@ -439,7 +439,7 @@ def runIgnitionReactionSensitivity(runChemkinJob, inputFile, dictionaryFile):
     
     
     worksheet = csv.writer(file('ignition_rxn_sensitivity.csv', 'w'))
-    worksheet.writerow(['Index', 'Reaction', 'd[ln tau]/d[ln k]'])
+    worksheet.writerow(['Index', 'Reaction', 'd[ln k]','tau_high','tau_low','d[ln tau]/d[ln k]'])
     
     for index, reaction in enumerate(reactionList):
         rxn_index = index + 1
@@ -460,7 +460,7 @@ def runIgnitionReactionSensitivity(runChemkinJob, inputFile, dictionaryFile):
         else:
             sens = 0
             
-        worksheet.writerow([rxn_index, rxn_string, sens])
+        worksheet.writerow([rxn_index, rxn_string, math.log(k_high / k_low), tau_high, tau_low, sens])
         
 ################################################################################
 
@@ -477,10 +477,10 @@ def runIgnitionThermoSensitivity(runChemkinJob, inputFile, dictionaryFile):
     
     speciesList, reactionList = loadChemkinFile(inputFile, dictionaryPath = dictionaryFile, readComments = False)
     
-    deltaH = Quantity(1, 'kcal/mol').value_si
+    deltaH = Quantity(0.5, 'kcal/mol').value_si
     
     worksheet = csv.writer(file('ignition_thermo_sensitivity.csv', 'w'))
-    worksheet.writerow(['Species', 'd[ln tau]/d[del H]'])
+    worksheet.writerow(['Species', 'd[del H] (kcal/mol)', 'tau_high', 'tau_low', 'd[ln tau]/d[del H]'])
     
     for species in speciesList:
         species_string = getSpeciesIdentifier(species)
@@ -500,5 +500,5 @@ def runIgnitionThermoSensitivity(runChemkinJob, inputFile, dictionaryFile):
         else:
             sens = 0
             
-        worksheet.writerow([species_string, sens])
+        worksheet.writerow([species_string, '1', tau_high, tau_low, sens])
       
