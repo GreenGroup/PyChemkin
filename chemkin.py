@@ -456,11 +456,11 @@ def runIgnitionReactionSensitivity(runChemkinJob, inputFile, dictionaryFile):
         reaction.kinetics.changeRate(1./factor_low)     # reset the kinetics
         
         if tau_high != 0 and tau_low != 0:
-            sens = math.log(tau_high / tau_low) / math.log(k_high / k_low)
+            sens = numpy.log(tau_high / tau_low) / numpy.log(k_high / k_low)
         else:
             sens = 0
             
-        worksheet.writerow([rxn_index, rxn_string, math.log(k_high / k_low), tau_high, tau_low, sens])
+        worksheet.writerow([rxn_index, rxn_string, numpy.log(k_high / k_low), tau_high, tau_low, sens])
         
 ################################################################################
 
@@ -496,7 +496,7 @@ def runIgnitionThermoSensitivity(runChemkinJob, inputFile, dictionaryFile):
         species.thermo.changeBaseEnthalpy(deltaH)     # reset the kinetics
         
         if tau_high != 0 and tau_low != 0:
-            sens = math.log(tau_high / tau_low) / (2 * deltaH)
+            sens = numpy.log(tau_high / tau_low) / (2 * deltaH)
         else:
             sens = 0
             
