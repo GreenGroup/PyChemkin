@@ -454,7 +454,7 @@ def runIgnitionReactionSensitivity(runChemkinJob, inputFile, dictionaryFile):
         reaction.kinetics.changeRate(1./factor_high)    # reset the kinetics
         
         reaction.kinetics.changeRate(factor_low)
-        saveChemkinFile('chem_temp,', speciesList, reactionList, verbose = False)
+        saveChemkinFile('chem_temp.inp', speciesList, reactionList, verbose = False)
         tau_low = runChemkinJob('chem_temp.inp')
         reaction.kinetics.changeRate(1./factor_low)     # reset the kinetics
         
@@ -499,7 +499,7 @@ def runIgnitionThermoSensitivity(runChemkinJob, inputFile, dictionaryFile):
         species.thermo.changeBaseEnthalpy(-deltaH)    # reset the thermo
         
         species.thermo.changeBaseEnthalpy(-deltaH)
-        saveChemkinFile('chem_temp,', speciesList, reactionList, verbose = False)
+        saveChemkinFile('chem_temp.inp', speciesList, reactionList, verbose = False)
         tau_low = runChemkinJob('chem_temp.inp')
         species.thermo.changeBaseEnthalpy(deltaH)     # reset the kinetics
         
