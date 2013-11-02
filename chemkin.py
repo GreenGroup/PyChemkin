@@ -409,14 +409,21 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
 
 ################################################################################
 
-def getIgnitionDelay(ckcsvFile, tol=1.0):
+def getIgnitionDelay(ckcsvFile, tol=1.0, species = []):
     """
     Return the ignition delay time from the given CKCSV file. This function
     uses (dP/dt)_max to find the ignition delay time. A ValueError is raised if
     this dP/dt value is below a certain threshold.
+    
+    Alternatively, provide a list of species which are maximized at tau.  
+    If the list contains a single species label, ie. ['OH'] the ignition delay will be given as the
+    time at which the concentraiton of that species is maximized.  If a list of species is given,
+    then the multiplicative max of the concentrations of those species is returned.  ie. if 
+    it is desired to calculated the ignition delay using max([CH][O]), then the species list 
+    ['CH','O'] should be inputted.
     """
     
-    tdata = None; Pdata = None
+    tdata = None; Pdata = None; specdata = []
     
     with open(ckcsvFile, 'r') as stream:
         reader = csv.reader(stream)
@@ -430,18 +437,29 @@ def getIgnitionDelay(ckcsvFile, tol=1.0):
                 Pdata = numpy.array([float(r) for r in row[2:]], numpy.float)
                 Punits = row[1].strip()[1:-1].lower()
                 Pdata *= {'dyne/cm2': 0.1, 'atm': 101325., 'Pa': 1.0, 'bar': 1e5, 'torr': 133.322368, 'mtorr': 0.133322368, 'psi': 6894.75729}[Punits] * 1e-5
+            for spec in species:
+                specdata.append(numpy.array([float(r) for r in row[2:]], numpy.float))
     
     if tdata is None or Pdata is None:
         raise Exception('Unable to read time and/or pressure data from the given CKCSV file.')
     
-    dPdt = (Pdata[1:] - Pdata[:-1]) / (tdata[1:] - tdata[:-1])
-    dPdt = dPdt[numpy.isfinite(dPdt)]
-     	
-    index = dPdt.argmax()
-    if dPdt[index] < tol:
-        raise ValueError('No ignition occurred in the given simulation.')
+    if species:
+        multdata = numpy.ones(len(specdata[0]))
+        for spec in specdata:
+            multdata *= spec
+        
+        index = multdata.argmax()
+        return tdata[index]
     
-    return 0.5 * (tdata[index] + tdata[index+1])
+    else:
+        dPdt = (Pdata[1:] - Pdata[:-1]) / (tdata[1:] - tdata[:-1])
+        dPdt = dPdt[numpy.isfinite(dPdt)]
+         	
+        index = dPdt.argmax()
+        if dPdt[index] < tol:
+            raise ValueError('No ignition occurred in the given simulation.')
+        
+        return 0.5 * (tdata[index] + tdata[index+1])
 
 ################################################################################
 
