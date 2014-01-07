@@ -483,7 +483,7 @@ def runIgnitionReactionSensitivity(runChemkinJob, inputFile, dictionaryFile):
     worksheet = csv.writer(file('ignition_rxn_sensitivity.csv', 'w'))
     worksheet.writerow(['Index', 'Reaction', 'd[ln k]','tau_high','tau_low','d[ln tau]/d[ln k]'])
     
-    loggin.info('Running reaction sensitivity analysis using finite differences...')
+    logging.info('Running reaction sensitivity analysis using finite differences...')
     for index, reaction in enumerate(reactionList):
         rxn_index = index + 1
         rxn_string = reaction.toChemkin(kinetics = False)
