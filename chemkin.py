@@ -384,6 +384,7 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
 
 
 
+
 ################################################################################
 
 def getIgnitionDelay(ckcsvFile, tol=1.0):
@@ -413,12 +414,117 @@ def getIgnitionDelay(ckcsvFile, tol=1.0):
     
     dPdt = (Pdata[1:] - Pdata[:-1]) / (tdata[1:] - tdata[:-1])
     dPdt = dPdt[numpy.isfinite(dPdt)]
-     	
-    index = dPdt.argmax()
+    #index2 = dPdt.argmax()
+    index = next(i for i,d in enumerate(dPdt) if d==max(dPdt))
+    #print index, index2
+    #print dPdt[index], dPdt[index2]
     if dPdt[index] < tol:
         raise ValueError('No ignition occurred in the given simulation.')
     
     return 0.5 * (tdata[index] + tdata[index+1])
 
+################################################################################
+def getIgnitionDelayOH(ckcsvFile, tol=1.0):
+    """
+    Return the ignition delay time from the given CKCSV file. This function
+    uses (OH)_max to find the ignition delay time. 
+    """
+    
+    tdata = None; OHdata = None
+    
+    with open(ckcsvFile, 'r') as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            label = row[0].strip()
+            if label.startswith('Time'):
+                tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                tunits = row[1].strip()[1:-1].lower()
+                tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
+            elif label.startswith('Mole_fraction_OH'):
+                OHdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+    
+    if tdata is None or OHdata is None:
+        raise Exception('Unable to read time and/or OH data from the given CKCSV file.')
+    
+    OHdata = OHdata[numpy.isfinite(OHdata)] 
+    index = OHdata.argmax()
+
+    if index == len(OHdata)-1:
+        raise ValueError('No ignition occurred in the given simulation.')
+
+    return 0.5 * (tdata[index])
+
+################################################################################
+def getPeakOQOOHTime(ckcsvFile,spc, tol=1.0):
+    """
+    Return the ignition delay time from the given CKCSV file. This function
+    uses (OQOOH)_max to find the ignition delay time. 
+    """
+    
+    tdata = None; OQOOHdata = None
+    spc_label =  'Mole_fraction_'+spc
+    
+    with open(ckcsvFile, 'r') as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            label = row[0].strip()
+            if label.startswith('Time'):
+                tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                tunits = row[1].strip()[1:-1].lower()
+                tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
+            elif label.startswith(spc_label):
+                OQOOHdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+    
+    if tdata is None or OQOOHdata is None:
+        raise Exception('Unable to read time and/or OH data from the given CKCSV file.')
+    
+    OQOOHdata = OQOOHdata[numpy.isfinite(OQOOHdata)] 
+    index = OQOOHdata.argmax()
+
+    if index == len(OQOOHdata)-1:
+        raise ValueError('No OQOOH peak found in the given simulation.')
+
+    return (tdata[index])
+################################################################################
+def getIgnitionDelayStage1(ckcsvFile,stepsize = 1500,tol=1.0):
+    """
+    Return the ignition delay time from the given CKCSV file. This function
+    uses (d2T/dt2) inflection to find the first stage ignition delay time. A ValueError is raised if
+    this dT/dt value is below a certain threshold.
+    """
+    
+    tdata = None; Tdata = None
+    
+    with open(ckcsvFile, 'r') as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            label = row[0].strip()
+            if label.startswith('Time'):
+                tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                tunits = row[1].strip()[1:-1].lower()
+                tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
+            elif label.startswith('Temperature'):
+                Tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+    
+    if tdata is None or Tdata is None:
+        raise Exception('Unable to read time and/or temperature data from the given CKCSV file.')
+    
+    from scipy import interpolate
+    s = interpolate.interp1d(tdata[:], Tdata[:])
+    xs = numpy.linspace(0.0, tdata[-1], stepsize)
+    ys = s(xs)
+    dT_dt = (ys[1:]-ys[:-1])/(xs[1:]-xs[:-1])
+    xs1 = xs[1:]
+    dT2_dt2 = (dT_dt[1:]-dT_dt[:-1])/(xs1[1:]-xs1[:-1])
+    xs2 = xs1[1:]
+    try:
+        time_index_Tinflection = next(x[0] for x in enumerate(dT2_dt2) if x[1] < -100 )
+    except StopIteration:
+        raise ValueError('No T kink found.')
+        #time_index_Tinflection = len(xs2)             
+    
+    Time_inflection = xs2[time_index_Tinflection]
+
+    return Time_inflection
 ################################################################################
       
