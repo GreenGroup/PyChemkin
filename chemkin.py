@@ -386,6 +386,108 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
 
 
 ################################################################################
+    def writeinputJSR(self,problemType, reactants, tau,volume, 
+                           temperature  = None, pressure  = None,  
+                           temperatureProfile = None, pressureProfile = None):
+    
+        """
+        Write input file for JSR
+        """
+        
+        # Problem definition block 
+                    
+        input_stream=("""
+! 
+! problem type definition
+!
+STST   ! Steady State Solver 
+""")
+
+        if problemType.lower() == 'FixGasTemperature'.lower():
+            input_stream+=("""
+TGIV   ! Fix Gas Temperature""")
+        elif problemType.lower() == 'solveGasEnergy'.lower():
+            input_stream+=("""
+ENRG   ! Solve Gas Energy Equation""")
+    
+        
+        # Physical property
+        
+        input_stream+=("""
+! 
+! physical property
+! 
+!Surface_Temperature   ! Surface Temperature Same as Gas Temperature
+""")
+                
+        if pressureProfile:
+            with open(pressureProfile, 'rb') as csvfile:
+                reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+                for row in reader:
+                    pos = float(row[0].split(',')[0]) # (cm)
+                    pres = float(row[0].split(',')[1])*1.0/1.01325 # (atm)
+                    input_stream+=("""
+PPRO {0:g} {1:g}   ! Pressure (atm)""".format(time,vol))
+        else:
+            input_stream+=('PRES {0:g}   ! Pressure (atm)\n'.format(pressure/1.01325))
+        
+		# Residence time 
+		input_stream+=('TAU {0:g}   ! Residence time (sec)\n'.format(tau))
+
+		
+        if temperatureProfile:
+            with open(temperatureProfile, 'rb') as csvfile:
+                reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+                for row in reader:
+                    pos = float(row[0].split(',')[0]) # (cm)
+                    temp = float(row[0].split(',')[1]) # (K)
+                    input_stream+=("""
+TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
+        else:
+            input_stream+=('TEMP {0:g}   ! Temperature (K)'.format(temperature)) 
+        
+        # volume
+		input_stream+=('VOL {0:g}   ! Volume (cm3)\n'.format(volume))
+        
+        # Species property block
+        
+        input_stream+=("""
+!
+! species property
+!
+""")
+        
+        for reac , conc in reactants:            
+            input_stream+=('REAC {0} {1:g} ! Reactant Fraction (mole fraction) \n'.format(reac,conc))
+            
+        #  output control and other misc. property
+        input_stream+=("""
+! 
+! output control and other misc. property
+! 
+GFAC 1.0   ! Gas Reaction Rate Multiplier
+PRNT 0   ! Print Level Control""")
+                                            
+        if Continuations:
+            if numpy.array(Tlist).size:                
+                for i in range(numpy.array(Tlist).shape[0]):
+                    input_stream+=("""
+{0}
+END
+TEMP {1:g}""".format(typeContinuation,numpy.array(Tlist)[i]))
+            
+            if numpy.array(Plist).size:         
+                for i in range(numpy.array(Plist).shape[0]):
+                    input_stream+=("""
+{0}
+END
+PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
+                                            
+        input_stream+=('\nEND')        
+        return input_stream      
+
+
+################################################################################
 
 def getIgnitionDelay(ckcsvFile, tol=1.0):
     """
