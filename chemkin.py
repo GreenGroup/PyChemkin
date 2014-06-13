@@ -387,7 +387,8 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
 
 ################################################################################
     def writeinputJSR(self,problemType, reactants, tau,volume, 
-                           temperature  = None, pressure  = None,  
+                           temperature  = None, pressure  = None,
+                           Continuations=False, typeContinuation = None, Tlist = [], Plist = [],						   
                            temperatureProfile = None, pressureProfile = None):
     
         """
