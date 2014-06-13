@@ -386,7 +386,7 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
 
 
 ################################################################################
-    def writeinputJSR(self,problemType, reactants, tau,volume, 
+    def writeinputJSR(self,problemType, reactants, tau,endtime, volume, 
                            temperature  = None, pressure  = None,
                            Continuations=False, typeContinuation = None, Tlist = [], Plist = [],						   
                            temperatureProfile = None, pressureProfile = None):
@@ -401,7 +401,7 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
 ! 
 ! problem type definition
 !
-STST   ! Steady State Solver 
+TRAN   ! Transient Solver 
 """)
 
         if problemType.lower() == 'FixGasTemperature'.lower():
@@ -460,14 +460,26 @@ TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
         
         for reac , conc in reactants:            
             input_stream+=('REAC {0} {1:g} ! Reactant Fraction (mole fraction) \n'.format(reac,conc))
-            
-        #  output control and other misc. property
+		# For transient solver you also need estimates of species initial gas fraction
+	for reac , conc in reactants:            
+            input_stream+=('XEST {0} {1:g} ! Initial Gas Fraction (mole fraction) \n'.format(reac,conc))
+        
+		# solver control    
+        input_stream+=("""
+! 
+! solver control
+! 
+ADAP   ! Save Additional Adaptive Points
+""")    
+        input_stream+=('TIME {0:g}   ! End Time (sec) \n'.format(endtime))    
+	
+	#  output control and other misc. property
         input_stream+=("""
 ! 
 ! output control and other misc. property
 ! 
 GFAC 1.0   ! Gas Reaction Rate Multiplier
-PRNT 0   ! Print Level Control""")
+""")
                                             
         if Continuations:
             if numpy.array(Tlist).size:                
