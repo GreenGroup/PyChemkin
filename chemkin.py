@@ -431,8 +431,8 @@ PPRO {0:g} {1:g}   ! Pressure (atm)""".format(time,vol))
         else:
             input_stream+=('PRES {0:g}   ! Pressure (atm)\n'.format(pressure/1.01325))
         
-		# Residence time 
-		input_stream+=('TAU {0:g}   ! Residence time (sec)\n'.format(tau))
+	# Residence time 
+	input_stream+=('TAU {0:g}   ! Residence time (sec)\n'.format(tau))
 
 		
         if temperatureProfile:
@@ -447,7 +447,7 @@ TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
             input_stream+=('TEMP {0:g}   ! Temperature (K)'.format(temperature)) 
         
         # volume
-		input_stream+=('VOL {0:g}   ! Volume (cm3)\n'.format(volume))
+	input_stream+=('VOL {0:g}   ! Volume (cm3)\n'.format(volume))
         
         # Species property block
         
