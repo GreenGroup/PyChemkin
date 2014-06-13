@@ -445,7 +445,7 @@ PPRO {0:g} {1:g}   ! Pressure (atm)""".format(time,vol))
                     input_stream+=("""
 TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
         else:
-            input_stream+=('TEMP {0:g}   ! Temperature (K)'.format(temperature)) 
+            input_stream+=('TEMP {0:g}   ! Temperature (K)\n'.format(temperature)) 
         
         # volume
 	input_stream+=('VOL {0:g}   ! Volume (cm3)\n'.format(volume))
