@@ -163,7 +163,7 @@ class ChemkinJob(object):
  
 ################################################################################
         
-    def writeinputRCM(self,problemType, reactants, temperature, pressure, endTime, 
+    def writeInputRCM(self,problemType, reactants, temperature, pressure, endTime, 
                       Continuations=False, typeContinuation = None, Tlist = [], Plist = [],
                       variableVolume=False, variableVolumeProfile = None, 
                       solverTimeStepProfile = None):
@@ -291,7 +291,7 @@ PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
         return input_stream      
 
 ################################################################################
-    def writeinputPlugFlow(self,problemType, reactants, flowrate, 
+    def writeInputPlugFlow(self,problemType, reactants, flowrate, 
                            startingAxialPosition, endingAxialPosition, diameter,
                            temperature  = None, pressure  = None,  
                            temperatureProfile = None, pressureProfile = None):
