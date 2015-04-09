@@ -431,13 +431,6 @@ def getMoleFraction(ckcsvFile, species = [], time = None):
         raise Exception('Unable to read time data from the given CKCSV file.')
 
     return tdata, specdata
-#    if time is None:
-#        # Pull final data point
-#        data = [specvec[-1] for specvec in specdata]
-#    else:
-#        index = numpy.abs(tdata - time).argmin()
-#        data = [specvec[index] for specvec in specdata]
-#    return data
 
 ################################################################################
 
