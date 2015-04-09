@@ -405,7 +405,39 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
         return input_stream      
     
 
+################################################################################
+def getMoleFraction(ckcsvFile, species = [], time = None):
+    """
+    Return the mole fraction from the given CKCSV file.  
+    """
 
+    tdata = None; specdata = []
+    
+    with open(ckcsvFile, 'r') as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            label = row[0].strip()
+            if label.startswith('Time'):
+                tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                tunits = row[1].strip()[1:-1].lower()
+                tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
+
+            for spec in species:
+                if spec in label:
+                    print label
+                    specdata.append(numpy.array([float(r) for r in row[2:]], numpy.float))
+
+    if tdata is None:
+        raise Exception('Unable to read time data from the given CKCSV file.')
+
+    return tdata, specdata
+#    if time is None:
+#        # Pull final data point
+#        data = [specvec[-1] for specvec in specdata]
+#    else:
+#        index = numpy.abs(tdata - time).argmin()
+#        data = [specvec[index] for specvec in specdata]
+#    return data
 
 ################################################################################
 
@@ -438,18 +470,36 @@ def getIgnitionDelay(ckcsvFile, tol=1.0, species = []):
                 Punits = row[1].strip()[1:-1].lower()
                 Pdata *= {'dyne/cm2': 0.1, 'atm': 101325., 'Pa': 1.0, 'bar': 1e5, 'torr': 133.322368, 'mtorr': 0.133322368, 'psi': 6894.75729}[Punits] * 1e-5
             for spec in species:
-                specdata.append(numpy.array([float(r) for r in row[2:]], numpy.float))
-    
+                if spec in label:
+                    specdata.append(numpy.array([float(r) for r in row[2:]], numpy.float))
+
     if tdata is None or Pdata is None:
         raise Exception('Unable to read time and/or pressure data from the given CKCSV file.')
     
     if species:
-        multdata = numpy.ones(len(specdata[0]))
-        for spec in specdata:
-            multdata *= spec
-        
-        index = multdata.argmax()
-        return tdata[index]
+        if len(species) == 1:
+            max_index = specdata[0].argmax()
+            OHmetric = max(specdata[0])/2  # 0.0015136805  the particular value for GRI-Mech 3.0
+            mindata = abs(specdata[0][0:max_index]-OHmetric)
+            index = mindata.argmin()
+            return tdata[index]
+        else:
+            
+            multdata = numpy.ones(len(specdata[0]))
+            ind1 = specdata[0].argmax()
+            ind2 = specdata[1].argmax()
+            for spec in specdata:  
+                multdata *= spec
+            print multdata
+            print tdata
+            print 'time max for species 1'
+            print tdata[ind1]
+            print 'time max for species 2'
+            print tdata[ind2]
+            index = multdata.argmax()
+            print 'time max for multiplied together'
+            print tdata[index]
+            return tdata[index]
     
     else:
         dPdt = (Pdata[1:] - Pdata[:-1]) / (tdata[1:] - tdata[:-1])
