@@ -163,12 +163,12 @@ class ChemkinJob(object):
  
 ################################################################################
         
-    def writeInputRCM(self,problemType, reactants, temperature, pressure, endTime, 
+    def writeInputHomogeneousBatch(self,problemType, reactants, temperature, pressure, endTime, 
                       Continuations=False, typeContinuation = None, Tlist = [], Plist = [],
                       variableVolume=False, variableVolumeProfile = None, 
                       solverTimeStepProfile = None):
         """
-        Write input file for typical RCM
+        Write input file for homogeneous batch reactor
         """
         
         # Problem definition block 
