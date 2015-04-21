@@ -7,21 +7,18 @@ using an RMG-generated model.
 """
 
 import os.path
-import shutil 
 import numpy
 import pylab
 import matplotlib.ticker
-import csv
 
 from chemkin import ChemkinJob, getIgnitionDelay
 
 currentDir = os.path.dirname(__file__)
 
 job = ChemkinJob(
-    name = 'iBuOH_low_temp',
-    #chemFile = os.path.realpath(os.path.join(currentDir, 'mechanism','chem_MIT_iBuOH_Sept1_2013_mod.inp')),
-    chemFile = os.path.realpath(os.path.join(currentDir, 'mechanism','C4H9OH_NSRL_model.inp')),
-    tempDir = os.path.realpath(os.path.join(currentDir, 'RCM', 'MIT','15bar')),
+    name = os.path.join(currentDir, 'iBuOH_low_temp'),
+    chemFile = os.path.join(currentDir, 'C4H9OH_NSRL_model.inp'),
+    tempDir = os.path.join(currentDir, 'temp'),
 )
 
 # Solver time step profile
@@ -44,7 +41,7 @@ for j in range(iBuOH.shape[0]):
     
     for i in range(Tlist.shape[0]):   
     
-        input = job.writeinputRCM(
+        input = job.writeInputHomogeneousBatch(
                                   
                                   problemType = 'constrainVandSolveE', # Problem type(constrainVandSolveE,
                                                                        # constrainPandSolveE, constrainPandT, constrainVandT)                                      
