@@ -9,7 +9,6 @@ from the command line.
 import os.path
 import subprocess
 import csv
-import math
 import numpy
 import logging
 import sys
@@ -160,9 +159,6 @@ class ChemkinJob(object):
         # Execute the postprocessor script
         subprocess.call(('/bin/sh', scriptFile), cwd=self.tempDir)
         
- 
-################################################################################
-        
     def writeInputHomogeneousBatch(self,problemType, reactants, temperature, pressure, endTime, 
                       Continuations=False, typeContinuation = None, Tlist = [], Plist = [],
                       variableVolume=False, variableVolumeProfile = None, 
@@ -290,7 +286,6 @@ PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
         
         return input_stream      
 
-################################################################################
     def writeInputPlugFlow(self,problemType, reactants, flowrate, 
                            startingAxialPosition, endingAxialPosition, diameter,
                            temperature  = None, pressure  = None,  
@@ -337,7 +332,7 @@ ENRG   ! Solve Gas Energy Equation""")
                     pos = float(row[0].split(',')[0]) # (cm)
                     pres = float(row[0].split(',')[1])*1.0/1.01325 # (atm)
                     input_stream+=("""
-PPRO {0:g} {1:g}   ! Pressure (atm)""".format(time,vol))
+PPRO {0:g} {1:g}   ! Pressure (atm)""".format(pos,pres))
         else:
             input_stream+=('PRES {0:g}   ! Pressure (atm)\n'.format(pressure/1.01325))
             
@@ -404,39 +399,9 @@ GFAC 1.0   ! Gas Reaction Rate Multiplier""")
         
         return input_stream      
     
-
-################################################################################
-def getMoleFraction(ckcsvFile, species = [], time = None):
-    """
-    Return the mole fraction from the given CKCSV file.  
-    """
-
-    tdata = None; specdata = []
-    
-    with open(ckcsvFile, 'r') as stream:
-        reader = csv.reader(stream)
-        for row in reader:
-            label = row[0].strip()
-            if label.startswith('Time'):
-                tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
-                tunits = row[1].strip()[1:-1].lower()
-                tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
-
-            for spec in species:
-                if spec in label:
-                    print label
-                    specdata.append(numpy.array([float(r) for r in row[2:]], numpy.float))
-
-    if tdata is None:
-        raise Exception('Unable to read time data from the given CKCSV file.')
-
-    return tdata, specdata
-
-
-################################################################################
     def writeinputJSR(self,problemType, reactants, tau,endtime, volume, 
                            temperature  = None, pressure  = None,
-                           Continuations=False, typeContinuation = None, Tlist = [], Plist = [],						   
+                           Continuations=False, typeContinuation = None, Tlist = [], Plist = [],                           
                            temperatureProfile = None, pressureProfile = None):
     
         """
@@ -476,14 +441,13 @@ ENRG   ! Solve Gas Energy Equation""")
                     pos = float(row[0].split(',')[0]) # (cm)
                     pres = float(row[0].split(',')[1])*1.0/1.01325 # (atm)
                     input_stream+=("""
-PPRO {0:g} {1:g}   ! Pressure (atm)""".format(time,vol))
+PPRO {0:g} {1:g}   ! Pressure (atm)""".format(pos, pres))
         else:
             input_stream+=('PRES {0:g}   ! Pressure (atm)\n'.format(pressure/1.01325))
         
-	# Residence time 
-	input_stream+=('TAU {0:g}   ! Residence time (sec)\n'.format(tau))
+        # Residence time 
+        input_stream+=('TAU {0:g}   ! Residence time (sec)\n'.format(tau))
 
-		
         if temperatureProfile:
             with open(temperatureProfile, 'rb') as csvfile:
                 reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
@@ -496,7 +460,7 @@ TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
             input_stream+=('TEMP {0:g}   ! Temperature (K)\n'.format(temperature)) 
         
         # volume
-	input_stream+=('VOL {0:g}   ! Volume (cm3)\n'.format(volume))
+        input_stream+=('VOL {0:g}   ! Volume (cm3)\n'.format(volume))
         
         # Species property block
         
@@ -508,11 +472,11 @@ TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
         
         for reac , conc in reactants:            
             input_stream+=('REAC {0} {1:g} ! Reactant Fraction (mole fraction) \n'.format(reac,conc))
-		# For transient solver you also need estimates of species initial gas fraction
-	for reac , conc in reactants:            
+        # For transient solver you also need estimates of species initial gas fraction
+        for reac , conc in reactants:            
             input_stream+=('XEST {0} {1:g} ! Initial Gas Fraction (mole fraction) \n'.format(reac,conc))
         
-		# solver control    
+        # solver control    
         input_stream+=("""
 ! 
 ! solver control
@@ -520,8 +484,8 @@ TPRO {0:g} {1:g}   ! Temperature (K)""".format(pos,temp))
 ADAP   ! Save Additional Adaptive Points
 """)    
         input_stream+=('TIME {0:g}   ! End Time (sec) \n'.format(endtime))    
-	
-	#  output control and other misc. property
+    
+        # output control and other misc. property
         input_stream+=("""
 ! 
 ! output control and other misc. property
@@ -547,6 +511,34 @@ PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
         input_stream+=('\nEND')        
         return input_stream      
 
+
+################################################################################
+
+def getMoleFraction(ckcsvFile, species = [], time = None):
+    """
+    Return the mole fraction from the given CKCSV file.  
+    """
+
+    tdata = None; specdata = []
+    
+    with open(ckcsvFile, 'r') as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            label = row[0].strip()
+            if label.startswith('Time'):
+                tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                tunits = row[1].strip()[1:-1].lower()
+                tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
+
+            for spec in species:
+                if spec in label:
+                    print label
+                    specdata.append(numpy.array([float(r) for r in row[2:]], numpy.float))
+
+    if tdata is None:
+        raise Exception('Unable to read time data from the given CKCSV file.')
+
+    return tdata, specdata
 
 ################################################################################
 
@@ -612,7 +604,7 @@ def getIgnitionDelay(ckcsvFile, tol=1.0, species = []):
     else:
         dPdt = (Pdata[1:] - Pdata[:-1]) / (tdata[1:] - tdata[:-1])
         dPdt = dPdt[numpy.isfinite(dPdt)]
-         	
+         
         #index = dPdt.argmax()
         index = next(i for i,d in enumerate(dPdt) if d==max(dPdt))
         if dPdt[index] < tol:
