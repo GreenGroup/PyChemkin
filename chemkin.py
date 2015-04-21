@@ -16,8 +16,10 @@ import sys
 ################################################################################
 
 # The directory in which Chemkin is installed
-CHEMKIN_DIR = os.path.abspath('/home/reaction/chemkin15131_linuxx8664')
-
+if os.path.exists('chemkin_path'):
+    with open('chemkin_path', 'r') as f:
+        CHEMKIN_DIR = os.path.abspath(f.readline())
+        
 # The preamble to each Chemkin execution shell script
 CHEMKIN_SCRIPT_PREAMBLE = """#!/bin/sh -v
 
