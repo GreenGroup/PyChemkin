@@ -56,8 +56,8 @@ class ChemkinJob(object):
     
     def __init__(self, name, chemFile, tempDir):
         self.name = name
-        self.chemFile = chemFile
-        self.tempDir = tempDir
+        self.chemFile = os.path.abspath(chemFile)
+        self.tempDir = os.path(tempDir)
         
     @property
     def ascFile(self):

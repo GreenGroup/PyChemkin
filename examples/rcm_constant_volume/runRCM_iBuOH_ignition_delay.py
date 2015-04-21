@@ -16,7 +16,7 @@ from chemkin import ChemkinJob, getIgnitionDelay
 currentDir = os.path.dirname(__file__)
 
 job = ChemkinJob(
-    name = os.path.join(currentDir, 'iBuOH_low_temp'),
+    name = 'iBuOH',
     chemFile = os.path.join(currentDir, 'C4H9OH_NSRL_model.inp'),
     tempDir = os.path.join(currentDir, 'temp'),
 )
