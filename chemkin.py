@@ -16,8 +16,10 @@ import sys
 ################################################################################
 
 # The directory in which Chemkin is installed
-if os.path.exists('chemkin_path'):
-    with open('chemkin_path', 'r') as f:
+chemkin_path = os.path.abspath(os.path.join(os.path.dirname(__file__),'chemkin_path'))
+
+if os.path.exists(chemkin_path):
+    with open(chemkin_path, 'r') as f:
         CHEMKIN_DIR = os.path.abspath(f.readline())
         
 # The preamble to each Chemkin execution shell script
@@ -59,7 +61,7 @@ class ChemkinJob(object):
     def __init__(self, name, chemFile, tempDir):
         self.name = name
         self.chemFile = os.path.abspath(chemFile)
-        self.tempDir = os.path(tempDir)
+        self.tempDir = os.path.abspath(tempDir)
         
     @property
     def ascFile(self):
