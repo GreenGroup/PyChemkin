@@ -62,6 +62,8 @@ class ChemkinJob(object):
         self.name = name
         self.chemFile = os.path.abspath(chemFile)
         self.tempDir = os.path.abspath(tempDir)
+        if not os.path.exists(self.tempDir):
+            os.makedirs(self.tempDir)
         
     @property
     def ascFile(self):
@@ -82,6 +84,10 @@ class ChemkinJob(object):
     @property
     def ckcsvFile(self):
         return os.path.join(self.tempDir, 'CKSoln.ckcsv')
+
+    @property
+    def preferenceFile(self):
+        return os.path.join(self.tempDir, 'CKSolnList.txt')
     
     @property
     def dataZipFile(self):
@@ -138,12 +144,42 @@ class ChemkinJob(object):
         # Execute the job script
         subprocess.call(('/bin/sh', scriptFile), cwd=self.tempDir)
 
-    def postprocess(self, sens=False, rop=False, all=False, transpose=True, preferenceFile = False):
+    def postprocess(self, sens=False, rop=False, all=False, transpose=True):
         """
         Run the Chemkin postprocessor.
         """
-        scriptFile = os.path.join(self.tempDir, 'RUNJOB_CKPostProcessor.sh')
+        # Set default preferences and write them to the preference file
+        with open(self.preferenceFile, 'w') as stream:
+            stream.write('VARIABLE VAR ALL\n')
+            stream.write('VARIABLE SEN ALL\n')
+            stream.write('VARIABLE ROP ALL\n') 
+            stream.write('VARIABLE volume  1  0  0\n')
+            stream.write('VARIABLE external_surface_area  0  0  0\n')
+            stream.write('VARIABLE volumetric_heat_production_rate  0  0  0\n')
+            stream.write('VARIABLE surface_temperature  0  0  0\n')
+            stream.write('VARIABLE heat_loss_rate  0  0  0\n')
+            stream.write('VARIABLE temperature  1  0  0\n')
+            stream.write('VARIABLE mass  0  0  0\n')
+            stream.write('VARIABLE pressure  1  0  0\n')
+            stream.write('VARIABLE molar_conversion  0  0  0\n')
+            stream.write('VARIABLE net_reaction_rate  0  0  0\n')
+            stream.write('VARIABLE heat_production_per_reaction  0  0  0\n')
+            stream.write('VARIABLE molecular_weight  0  0  0\n')
+            stream.write('VARIABLE mass_density  0  0  0\n')
+            stream.write('VARIABLE mixture_enthalpy  0  0  0\n')
+            stream.write('VARIABLE sensible_enthalpy  0  0  0\n')
+            stream.write('VARIABLE unburned_hydrocarbons  0  0  0\n')
+            stream.write('VARIABLE volatile_organic_compounds  0  0  0\n')
+            stream.write('VARIABLE exhaust_in_ppmvd  0  0  0\n')
+            stream.write('VARIABLE all_single_point_values  0  0  0\n')
+            stream.write('VARIABLE use_reaction_string_instead_of_index  1  0  0\n')
+            stream.write('UNIT  Time  (sec)\n')
+            stream.write('UNIT  Temperature  (K)\n')
+            stream.write('UNIT  Pressure  (bar)\n')
+            stream.write('UNIT  Volume  (cm3)\n')
+
         # Write the postprocessor execution script to a file
+        scriptFile = os.path.join(self.tempDir, 'RUNJOB_CKPostProcessor.sh')
         with open(scriptFile, 'w') as stream:
             stream.write(CHEMKIN_SCRIPT_PREAMBLE)
             stream.write('# Extract solution data to CKCSV\n')
@@ -152,7 +188,7 @@ class ChemkinJob(object):
                 '-nosen ' if not sens else '',
                 '-norop ' if not rop else '',
                 '-all ' if all else '',
-                '-p'+' CKSolnList.txt ' if preferenceFile else '',
+                '-p'+' CKSolnList.txt ',
             ))
             if transpose:
                 stream.write('# Transpose the data to CSV\n')
@@ -518,31 +554,116 @@ PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
 
 ################################################################################
 
-def getMoleFraction(ckcsvFile, species = [], time = None):
+def getVariable(ckcsvFile, variable=None):
     """
-    Return the mole fraction from the given CKCSV file.  
+    Return the time and variable data (i.e. Pressure, Volume, or Temperature) from the given CKCSV file.  Returns the data
+    in the form of [time_soln1, timesoln2, ...] [variable_data_soln1, variable_data_soln2,...]
+    Returns time in units of [seconds]. Returns temperature in units of [K].
+    Returns pressure in units of [bar]. Returns volume in units of [cm3].
     """
+    if variable.lower() not in ['pressure','volume','temperature']:
+        raise Exception('Can only parse Pressure, Volume, or Temperature from CKCSV file.')
 
-    tdata = None; specdata = []
+    timeData = []; varData = []
+
+    units = {'k': 1.0, 'bar': 1, 'mpa': 10, 'pa': 1e-5, 'atm': 1.01325, 'cm3': 1.0, 'm3': 1e6}
     
     with open(ckcsvFile, 'r') as stream:
         reader = csv.reader(stream)
         for row in reader:
             label = row[0].strip()
-            if label.startswith('Time'):
+            tokens = label.split('_')
+            if tokens[0] == 'Time':
                 tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
                 tunits = row[1].strip()[1:-1].lower()
                 tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
+                timeData.append(tdata)      
 
-            for spec in species:
-                if spec in label:
-                    print label
-                    specdata.append(numpy.array([float(r) for r in row[2:]], numpy.float))
+            if tokens[0].lower() == variable.lower():
+                vdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                vunits = row[1].strip()[1:-1].lower()
+                vdata = vdata*units[vunits]
+                varData.append(vdata)
+    
+    return timeData, varData
 
-    if tdata is None:
-        raise Exception('Unable to read time data from the given CKCSV file.')
+def getMoleFraction(ckcsvFile, species=[]):
+    """
+    Return the time and mole fraction data from the given CKCSV file.  Returns the data
+    in the form of [time_soln1, timesoln2, ...] specdata[species_name]=[spec_molefrac_soln1, spec_molefrac_soln2,...].
+    Time is returned in units of [seconds].
+    """
 
-    return tdata, specdata
+    timeData = []; specData = {}
+
+    for spec in species:
+        specData[spec] = []
+    
+    with open(ckcsvFile, 'r') as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            label = row[0].strip()
+            tokens = label.split('_')
+            if tokens[0] == 'Time':
+                tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                tunits = row[1].strip()[1:-1].lower()
+                tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
+                timeData.append(tdata)      
+
+            if label.startswith('Mole_fraction'):
+                for spec in species:
+                    if tokens[2] == spec:
+                        specData[spec].append(numpy.array([float(r) for r in row[2:]], numpy.float))
+
+    return timeData, specData
+
+def getTotalMoles(ckcsvFile):
+    """
+    Return the time and total moles data from the given CKCSV file.  
+    Returns the data in the form of [time_soln1, timesoln2, ...], [total_moles_soln1, total_moles_soln2, ...]
+    Moles is returned in units of [moles].
+    """
+    
+    tempData = []; presData = []; volData = []; totalMolesData = []
+
+    with open(ckcsvFile, 'r') as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            label = row[0].strip()
+            tokens = label.split('_')
+
+            if  tokens[0] == 'Temperature':
+                Tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                Tunits = row[1].strip()[1:-1].lower()
+                try:
+                    Tdata *= {'k': 1.0}[Tunits] 
+                except KeyError:
+                    print 'Unknown units {0} for temperature. Cannot obtain total moles.'.format(Tunits)
+                tempData.append(Tdata)
+
+            if tokens[0] == 'Pressure': 
+                Pdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                Punits = row[1].strip()[1:-1].lower()
+                try:
+                    Pdata *= {'bar': 0.1, 'mpa': 1.0, 'pa': 1e-6, 'atm': 0.101325}[Punits]
+                except KeyError:
+                    print 'Unknown units {0} for pressure. Cannot obtain total moles.'.format(Punits)
+                presData.append(Pdata)
+            
+            if tokens[0] == 'Volume':                
+                Vdata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                Vunits = row[1].strip()[1:-1].lower()
+                try:
+                    Vdata *= {'cm3': 1.0, 'm3': 1e6}[Vunits]
+                except KeyError:
+                    print 'Unknown units {0} for volume. Cannot obtain total moles.'.format(Vunits)
+                volData.append(Vdata)
+
+    R = 8.3145
+    for i in range(len(tempData)):
+        totalMolesData.append(presData[i]*volData[i]/R/tempData[i])
+
+    return totalMolesData
 
 ################################################################################
 
