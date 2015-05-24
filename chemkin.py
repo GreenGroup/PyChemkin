@@ -326,8 +326,8 @@ PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
         
         return input_stream      
 
-    def writeInputPlugFlow(self,problemType, reactants, flowrate, 
-                           startingAxialPosition, endingAxialPosition, diameter,
+    def writeInputPlugFlow(self,problemType, reactants, 
+                           startingAxialPosition, endingAxialPosition, diameter, momentum=True, massflowrate = None, sccmflowrate = None, 
                            temperature  = None, pressure  = None,  
                            temperatureProfile = None, pressureProfile = None):
     
@@ -340,8 +340,19 @@ PRES {1:g}""".format(typeContinuation,numpy.array(Plist)[i]/1.01325))
         input_stream=("""
 ! 
 ! problem type definition
-! 
+!
+""")
+
+        if momentum:
+            input_stream+=("""
 MOMEN ON   ! Turn on Momentum Equation
+""")
+        else:
+            input_stream+=("""
+MOMEN OFF   ! Turn off Momentum Equation
+""")
+
+        input_stream+=("""
 PLUG   ! Plug Flow Reactor
 RTIME ON   ! Turn on Residence Time Calculation
 """)
@@ -362,8 +373,12 @@ ENRG   ! Solve Gas Energy Equation""")
 ! 
 !Surface_Temperature   ! Surface Temperature Same as Gas Temperature
 """)
-        
-        input_stream+=('FLRT {0:g}   ! Mass Flow Rate (g/sec)\n'.format(flowrate))
+        if massflowrate:
+            input_stream+=('FLRT {0:g}   ! Mass Flow Rate (g/sec)\n'.format(massflowrate))
+        elif sccmflowrate:
+            input_stream+=('SCCM {0:g}   ! Volumetric Flow Rate in SCCM (standard-cm3/min@298.15K)\n'.format(sccmflowrate))
+        else:
+            raise Exception('Must indicate either a mass or sccm flow rate')
         
         if pressureProfile:
             with open(pressureProfile, 'rb') as csvfile:
@@ -594,7 +609,7 @@ def getMoleFraction(ckcsvFile, species=[]):
     Time is returned in units of [seconds].
     """
 
-    timeData = []; specData = {}
+    timeData = []; distanceData = []; specData = {}
 
     for spec in species:
         specData[spec] = []
@@ -608,14 +623,24 @@ def getMoleFraction(ckcsvFile, species=[]):
                 tdata = numpy.array([float(r) for r in row[2:]], numpy.float)
                 tunits = row[1].strip()[1:-1].lower()
                 tdata *= {'sec': 1.0, 'min': 60., 'hr': 3600., 'msec': 1e-3, 'microsec': 1e-6}[tunits]
-                timeData.append(tdata)      
+                timeData.append(tdata)
+            
+            if tokens[0] == 'Distance':      
+                ddata = numpy.array([float(r) for r in row[2:]], numpy.float)
+                dunits = row[1].strip()[1:-1].lower()
+                ddata *= {'cm': 1.0, 'mm': 0.1, 'm': 100.}[dunits]
+                distanceData.append(ddata)
 
             if label.startswith('Mole_fraction'):
                 for spec in species:
                     if tokens[2] == spec:
                         specData[spec].append(numpy.array([float(r) for r in row[2:]], numpy.float))
-
-    return timeData, specData
+    if timeData:
+        return timeData, specData
+    elif distanceData:
+        return distanceData, specData
+    else:
+        return
 
 def getTotalMoles(ckcsvFile):
     """
